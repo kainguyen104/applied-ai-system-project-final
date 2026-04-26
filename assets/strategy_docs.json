@@ -1,0 +1,93 @@
+[
+  {
+    "id": "binary-search",
+    "source": "strategy-docs",
+    "title": "Binary search strategy",
+    "tags": ["higher", "lower", "midpoint", "range", "narrowing", "interval", "bound"],
+    "text": "Use midpoint reasoning to narrow the interval quickly. When a guess is too high, shift the upper bound down. When a guess is too low, shift the lower bound up."
+  },
+  {
+    "id": "endgame",
+    "source": "strategy-docs",
+    "title": "Endgame discipline",
+    "tags": ["late game", "attempts", "precision", "conservative", "few attempts", "careful"],
+    "text": "As attempts shrink, stop making wide jumps. Use the remaining range and the last feedback to make smaller, safer guesses."
+  },
+  {
+    "id": "history-awareness",
+    "source": "strategy-docs",
+    "title": "History-aware guessing",
+    "tags": ["history", "pattern", "previous guesses", "trend", "recent"],
+    "text": "Recent guesses are useful evidence. If the last few guesses cluster on one side, the next guess should move toward the opposite side of that cluster."
+  },
+  {
+    "id": "confidence-rules",
+    "source": "strategy-docs",
+    "title": "Confidence rules",
+    "tags": ["confidence", "guardrail", "non-spoiler", "coach", "hint quality"],
+    "text": "Give one concrete next step, avoid spoilers, and keep the tone coach-like. The best hint explains how to search, not the final answer."
+  },
+  {
+    "id": "difficulty-adjustment",
+    "source": "game-state",
+    "title": "Difficulty adjustment heuristic",
+    "tags": ["easy", "normal", "hard", "range width", "difficulty"],
+    "text": "Hard mode has a wider range, so the hint should emphasize range reduction and careful midpoint choices. Easy mode can be more direct and reassuring."
+  },
+  {
+    "id": "first-guess-strategy",
+    "source": "strategy-docs",
+    "title": "First guess strategy",
+    "tags": ["start", "beginning", "fresh", "first", "no history", "opening", "initial"],
+    "text": "With no prior guesses, start at the midpoint of the full range. This guarantees you cut the search space in half on the very first move regardless of where the secret number is."
+  },
+  {
+    "id": "overshoot-recovery",
+    "source": "strategy-docs",
+    "title": "Overshoot recovery",
+    "tags": ["too high", "overshoot", "upper bound", "lower", "reduce", "decrease", "above"],
+    "text": "After a too-high result, the secret is below your last guess. Drop to the midpoint between your last too-low guess and your current guess. Avoid repeating a number you already know is too high."
+  },
+  {
+    "id": "undershoot-recovery",
+    "source": "strategy-docs",
+    "title": "Undershoot recovery",
+    "tags": ["too low", "undershoot", "lower bound", "higher", "increase", "raise", "below"],
+    "text": "After a too-low result, the secret is above your last guess. Move to the midpoint between your current guess and the lowest number you know is too high. Keep raising the floor systematically."
+  },
+  {
+    "id": "attempt-budget",
+    "source": "strategy-docs",
+    "title": "Attempt budget awareness",
+    "tags": ["attempts", "budget", "limited", "running out", "final", "last chance", "careful"],
+    "text": "When few attempts remain, prioritize eliminating the largest possible chunk of the remaining range over making intuitive leaps. Each guess must cut the search space as efficiently as possible."
+  },
+  {
+    "id": "easy-mode-approach",
+    "source": "strategy-docs",
+    "title": "Easy mode approach",
+    "tags": ["easy", "1 to 20", "small range", "direct", "reassuring", "short range"],
+    "text": "In easy mode the range is only 1 to 20, so the game resolves quickly. A single midpoint guess near 10 narrows things down fast. Be direct and encourage the player since they are close to winning."
+  },
+  {
+    "id": "hard-mode-patience",
+    "source": "strategy-docs",
+    "title": "Hard mode patience",
+    "tags": ["hard", "1 to 200", "wide range", "patience", "systematic", "200", "large range"],
+    "text": "Hard mode spans 1 to 200. Resist the urge to make large intuitive jumps. Stick to midpoint reasoning at every step — the wider range means errors compound faster than in easier modes."
+  },
+  {
+    "id": "cluster-detection",
+    "source": "strategy-docs",
+    "title": "Cluster detection",
+    "tags": ["cluster", "grouped", "stuck", "same area", "pattern", "history", "repeated"],
+    "text": "If recent guesses are tightly grouped, the player is stuck in a narrow band. Recommend a deliberate jump to the opposite side of the cluster to break the pattern and gain new information."
+  },
+  {
+    "id": "elimination-tracking",
+    "source": "strategy-docs",
+    "title": "Elimination tracking",
+    "tags": ["eliminate", "ruled out", "narrowing", "range", "remaining", "interval", "shrink"],
+    "text": "Track what you have eliminated, not just what you have tried. Every guess either confirms or eliminates a half of the remaining range. The goal is to shrink the interval to zero as fast as possible."
+  }
+]
