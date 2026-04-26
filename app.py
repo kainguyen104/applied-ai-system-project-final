@@ -1,14 +1,24 @@
+import os
 import random
+
 import streamlit as st
+
 from logic_utils import (
+    build_game_state_summary,
+    configure_logging,
+    generate_ai_hint,
+    get_hot_cold_hint,
     get_range_for_difficulty,
+    load_high_score,
     parse_guess,
     check_guess,
-    update_score,
-    get_hot_cold_hint,
-    load_high_score,
+    run_agentic_hint_pipeline,
     save_high_score,
+    update_score,
 )
+
+
+configure_logging()
 
 st.set_page_config(page_title="Glitchy Guesser", page_icon="🎮")
 
@@ -32,33 +42,59 @@ attempt_limit = attempt_limit_map[difficulty]
 
 low, high = get_range_for_difficulty(difficulty)
 
+
+def reset_game_state(selected_difficulty: str) -> None:
+    """Reset the active game round for the current difficulty."""
+
+    st.session_state.secret = random.randint(low, high)
+    st.session_state.attempts = 0
+    st.session_state.score = 0
+    st.session_state.status = "playing"
+    st.session_state.attempt_log = []
+    st.session_state.active_difficulty = selected_difficulty
+    st.session_state.last_ai_hint = ""
+    st.session_state.last_ai_sources = []
+    st.session_state.last_ai_context = ""
+    st.session_state.last_agent_steps = []
+
 st.sidebar.caption(f"Range: {low} to {high}")
 st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
+st.sidebar.caption("AI hints are generated from retrieved strategy notes and recent game state.")
 
 st.sidebar.divider()
 st.sidebar.subheader("🏆 High Score")
 st.sidebar.metric("Best Score", load_high_score())
+st.sidebar.metric("Current Score", st.session_state.get("score", 0))
 
-if "secret" not in st.session_state:
-    st.session_state.secret = random.randint(low, high)
+if "active_difficulty" not in st.session_state:
+    reset_game_state(difficulty)
+elif st.session_state.active_difficulty != difficulty:
+    reset_game_state(difficulty)
 
-if "attempts" not in st.session_state:
-    st.session_state.attempts = 1
+if "attempt_log" not in st.session_state:
+    st.session_state.attempt_log = []
 
-if "score" not in st.session_state:
-    st.session_state.score = 0
+if "last_ai_hint" not in st.session_state:
+    st.session_state.last_ai_hint = ""
 
-if "status" not in st.session_state:
-    st.session_state.status = "playing"
+if "last_ai_sources" not in st.session_state:
+    st.session_state.last_ai_sources = []
 
-if "history" not in st.session_state:
-    st.session_state.history = []
+if "last_ai_context" not in st.session_state:
+    st.session_state.last_ai_context = ""
+
+if "last_agent_steps" not in st.session_state:
+    st.session_state.last_agent_steps = []
 
 st.subheader("Make a guess")
 
+st.caption(
+    f"Game state: {build_game_state_summary(guess=0, outcome='pending', history=st.session_state.attempt_log, difficulty=difficulty, attempt_number=st.session_state.attempts, low=low, high=high)}"
+)
+
 st.info(
-    f"Guess a number between 1 and 100. "
-    f"Attempts left: {attempt_limit - st.session_state.attempts}"
+    f"Guess a number between {low} and {high}. "
+    f"Attempts left: {max(0, attempt_limit - st.session_state.attempts)}"
 )
 
 with st.expander("Developer Debug Info"):
@@ -66,7 +102,7 @@ with st.expander("Developer Debug Info"):
     st.write("Attempts:", st.session_state.attempts)
     st.write("Score:", st.session_state.score)
     st.write("Difficulty:", difficulty)
-    st.write("History:", st.session_state.history)
+    st.write("Attempt log:", st.session_state.attempt_log)
 
 raw_guess = st.text_input(
     "Enter your guess:",
@@ -82,8 +118,7 @@ with col3:
     show_hint = st.checkbox("Show hint", value=True)
 
 if new_game:
-    st.session_state.attempts = 0
-    st.session_state.secret = random.randint(1, 100)
+    reset_game_state(difficulty)
     st.success("New game started.")
     st.rerun()
 
@@ -96,18 +131,85 @@ if st.session_state.status != "playing":
 
 if submit:
     st.session_state.attempts += 1
+    attempt_number = st.session_state.attempts
 
     ok, guess_int, err = parse_guess(raw_guess)
 
     if not ok:
-        st.session_state.history.append(raw_guess)
+        st.session_state.attempt_log.append(
+            {
+                "attempt": attempt_number,
+                "input": raw_guess,
+                "parsed_guess": None,
+                "outcome": "Invalid",
+                "ai_hint": None,
+                "confidence": None,
+                "mode": "none",
+                "sources": [],
+                "error": err,
+            }
+        )
         st.error(err)
     else:
-        st.session_state.history.append(guess_int)
-
-        # FIX: original code cast secret to str on even attempts, breaking comparisons. Identified with Claude.
         secret = st.session_state.secret
         outcome = check_guess(guess_int, secret)
+
+        ai_result = {
+            "hint": None,
+            "mode": "none",
+            "confidence": None,
+            "sources": [],
+            "retrieved_context": "",
+        }
+
+        if show_hint:
+            resolved_key = os.environ.get("ANTHROPIC_API_KEY")
+            if resolved_key:
+                ai_result = run_agentic_hint_pipeline(
+                    difficulty=difficulty,
+                    outcome=outcome,
+                    guess=guess_int,
+                    history=st.session_state.attempt_log,
+                    low=low,
+                    high=high,
+                    attempt_number=attempt_number,
+                    api_key=resolved_key,
+                )
+            else:
+                ai_result = generate_ai_hint(
+                    difficulty=difficulty,
+                    outcome=outcome,
+                    guess=guess_int,
+                    history=st.session_state.attempt_log,
+                    low=low,
+                    high=high,
+                    attempt_number=attempt_number,
+                    api_key=None,
+                )
+                ai_result["steps"] = []
+            st.session_state.last_ai_hint = ai_result["hint"]
+            st.session_state.last_ai_sources = ai_result["sources"]
+            st.session_state.last_ai_context = ai_result["retrieved_context"]
+            st.session_state.last_agent_steps = ai_result.get("steps", [])
+        else:
+            st.session_state.last_ai_hint = ""
+            st.session_state.last_ai_sources = []
+            st.session_state.last_ai_context = ""
+            st.session_state.last_agent_steps = []
+
+        st.session_state.attempt_log.append(
+            {
+                "attempt": attempt_number,
+                "input": raw_guess,
+                "parsed_guess": guess_int,
+                "outcome": outcome,
+                "ai_hint": ai_result["hint"],
+                "confidence": ai_result["confidence"],
+                "mode": ai_result["mode"],
+                "sources": ai_result["sources"],
+                "error": None,
+            }
+        )
 
         # Challenge 4: color-coded directional hints
         hint_text = {"Win": "🎉 Correct!", "Too High": "📉 Go LOWER!", "Too Low": "📈 Go HIGHER!"}
@@ -123,10 +225,23 @@ if submit:
             hc_emoji, hc_label = get_hot_cold_hint(guess_int, secret)
             st.markdown(f"### {hc_emoji} {hc_label}")
 
+            st.info(f"AI Coach: {ai_result['hint']}")
+            st.caption(
+                f"Confidence: {ai_result['confidence']:.2f} | Mode: {ai_result['mode']} | Sources: {', '.join(ai_result['sources']) or 'No docs'}"
+            )
+
+            with st.expander("AI Retrieval Evidence"):
+                st.write(ai_result["retrieved_context"])
+
+            if ai_result.get("steps"):
+                with st.expander("Agent reasoning steps"):
+                    for step in ai_result["steps"]:
+                        st.markdown(f"**Step {step['step']} — {step['name']}:** {step['output']}")
+
         st.session_state.score = update_score(
             current_score=st.session_state.score,
             outcome=outcome,
-            attempt_number=st.session_state.attempts,
+            attempt_number=attempt_number,
         )
 
         if outcome == "Win":
@@ -147,19 +262,54 @@ if submit:
                 )
 
 # Challenge 4: guess history summary table
-if st.session_state.history:
+if st.session_state.attempt_log:
     st.divider()
     st.subheader("📋 Guess History")
     rows = []
-    for i, entry in enumerate(st.session_state.history, start=1):
-        if isinstance(entry, int):
-            outcome = check_guess(entry, st.session_state.secret)
-            hc_emoji, hc_label = get_hot_cold_hint(entry, st.session_state.secret)
-            direction = {"Win": "🎉 Correct", "Too High": "📉 Lower", "Too Low": "📈 Higher"}[outcome]
-            rows.append({"#": i, "Guess": entry, "Hint": direction, "Proximity": f"{hc_emoji} {hc_label}"})
+    for entry in st.session_state.attempt_log:
+        if entry.get("error"):
+            row = {
+                "Attempt": entry["attempt"],
+                "Input": entry["input"],
+                "Result": "Invalid",
+            }
+            if show_hint:
+                row.update(
+                    {
+                        "AI Hint": "—",
+                        "Confidence": "—",
+                        "Sources": "—",
+                    }
+                )
+            rows.append(row)
         else:
-            rows.append({"#": i, "Guess": str(entry), "Hint": "Invalid", "Proximity": "—"})
+            parsed_guess = entry["parsed_guess"]
+            outcome = entry["outcome"]
+            hc_emoji, hc_label = get_hot_cold_hint(parsed_guess, st.session_state.secret)
+            row = {
+                "Attempt": entry["attempt"],
+                "Input": entry["input"],
+                "Result": outcome,
+                "Proximity": f"{hc_emoji} {hc_label}",
+            }
+            if show_hint:
+                row.update(
+                    {
+                        "AI Hint": entry["ai_hint"] if entry["ai_hint"] else "—",
+                        "Confidence": entry["confidence"] if entry["confidence"] is not None else "—",
+                        "Sources": ", ".join(entry["sources"]) if entry["sources"] else "—",
+                    }
+                )
+            rows.append(row)
     st.table(rows)
+
+if show_hint and st.session_state.last_ai_hint:
+    st.divider()
+    st.subheader("🤖 AI Coach Summary")
+    st.write(st.session_state.last_ai_hint)
+    st.caption(
+        f"Sources: {', '.join(st.session_state.last_ai_sources) if st.session_state.last_ai_sources else 'No docs'}"
+    )
 
 st.divider()
 st.caption("Built by an AI that claims this code is production-ready.")
