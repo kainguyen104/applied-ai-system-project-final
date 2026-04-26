@@ -608,17 +608,27 @@ def generate_ai_hint(
 
     if not hint_text:
         recent_guesses = _normalize_guesses(history)
-        midpoint = (low + high) // 2
+        # Compute effective bounds from history so midpoint stays inside the real remaining range
+        # history entries can be dicts (from app) or plain ints (from tests)
+        eff_high = min(
+            (e["parsed_guess"] - 1 for e in history if isinstance(e, dict) and e.get("outcome") == "Too High" and e.get("parsed_guess") is not None),
+            default=high,
+        )
+        eff_low = max(
+            (e["parsed_guess"] + 1 for e in history if isinstance(e, dict) and e.get("outcome") == "Too Low" and e.get("parsed_guess") is not None),
+            default=low,
+        )
+        midpoint = (eff_low + eff_high) // 2
         if outcome == "Too High":
-            new_high = guess - 1
-            mid = (low + new_high) // 2
+            new_high = min(guess - 1, eff_high)
+            mid = (eff_low + new_high) // 2
             if recent_guesses:
                 hint_text = f"Below {guess} — try around {mid} to cut the remaining range in half."
             else:
                 hint_text = f"Too high. Start lower — {mid} splits the range from {low} to {new_high}."
         elif outcome == "Too Low":
-            new_low = guess + 1
-            mid = (new_low + high) // 2
+            new_low = max(guess + 1, eff_low)
+            mid = (new_low + eff_high) // 2
             if recent_guesses:
                 hint_text = f"Above {guess} — try around {mid} to narrow things down."
             else:
