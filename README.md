@@ -166,6 +166,16 @@ This project taught me that building a useful AI system means designing *around*
 7. Start a new round with **New Game** and repeat.
 8. Run `python evaluate_ai_system.py` to see the 8-case PASS/FAIL report.
 
+## Demo Video
+
+[Loom walkthrough](https://www.loom.com/share/bf66065503524b9e956538f21481ad78)
+
+## Portfolio
+
+**GitHub:** https://github.com/kainguyen104/applied-ai-system-project-final
+
+**Reflection:** This project shows that I approach AI engineering as a systems problem, not a prompting problem. The most important decisions were not what to say to the model - they were the retrieval architecture (deterministic, auditable, testable without an API key), the fallback path (the whole system works and can be graded without a live model call), and the evaluation harness (8 cases with hard thresholds and a CI-friendly exit code). I treated the model as one component in a pipeline rather than the whole solution. That is what made the system explainable, testable, and reliable under real constraints.
+
 ## Repository Checklist
 
 - [app.py](app.py): Streamlit UI, agentic pipeline integration, agent steps expander
