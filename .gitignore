@@ -36,6 +36,12 @@ coverage.xml
 .DS_Store
 Thumbs.db
 
+# Runtime state
+high_score.txt
+
+# Claude Code local data
+.claude/
+
 # Editor and IDE settings
 .vscode/
 .idea/
